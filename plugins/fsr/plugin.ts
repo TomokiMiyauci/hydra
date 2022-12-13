@@ -1,8 +1,6 @@
 import {
   common,
   ensureDir,
-  hasOwn,
-  isFunction,
   join,
   parse,
   resolve,
@@ -10,7 +8,7 @@ import {
   type WalkOptions,
 } from "../../deps.ts";
 import type { Plugin } from "../../types.ts";
-import type { Handler, Resolver } from "./types.ts";
+import type { Resolver } from "./types.ts";
 
 const WalkOptions: WalkOptions = {
   includeFiles: true,
@@ -30,34 +28,6 @@ export interface Options {
    * @default "pages"
    */
   readonly dirName?: string;
-}
-
-export function resolveHandler(params: {
-  render: Resolver;
-}): Resolver {
-  return (module, ctx) => {
-    if (!hasOwn("handler", module)) return;
-
-    const handler = module.handler;
-
-    if (!isFunction(handler)) return;
-
-    async function render(): Promise<Response> {
-      const res = await params.render(module, ctx);
-
-      if (res) return res;
-
-      throw Error("response should be Response or Promise response");
-    }
-
-    const result = (handler as Handler)(ctx.request, {
-      render,
-    });
-
-    if (result instanceof Response) {
-      return result;
-    }
-  };
 }
 
 /** File system routing. */
@@ -81,10 +51,11 @@ export function useFsr(params: Params, options?: Options): Plugin {
         const pattern = pathToPattern(resolve("/", absPath));
 
         hydra.on(pattern, async (request) => {
+          // deno-lint-ignore ban-types
           const module = await import(path) as {};
 
           for (const resolver of params.resolvers) {
-            const maybeResponse = resolver(
+            const maybeResponse = await resolver(
               module,
               { request, path },
             );

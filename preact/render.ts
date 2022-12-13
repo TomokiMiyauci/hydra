@@ -30,11 +30,11 @@ const DEFAULT_EXPORT_NAME = "default";
 
 export function resolveComponent(
   options?: Partial<Options>,
-): Resolver {
+): (data?: unknown) => Resolver {
   const { Html = HtmlComponent, exportName = DEFAULT_EXPORT_NAME } = options ??
     {};
 
-  return ((module, ctx) => {
+  return (data) => (module, ctx) => {
     if (!hasOwn(exportName, module)) return;
 
     const exported = module[exportName];
@@ -42,7 +42,7 @@ export function resolveComponent(
     if (!isFunction(exported)) return;
 
     const url = new URL(ctx.request.url);
-    const props: PageProps = { url };
+    const props: PageProps = { url, data };
     const vNode = (exported as Component)(props);
 
     if (isValidElement(vNode)) {
@@ -67,5 +67,5 @@ export function resolveComponent(
         },
       });
     }
-  });
+  };
 }

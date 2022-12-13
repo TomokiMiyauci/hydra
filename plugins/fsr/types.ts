@@ -1,32 +1,14 @@
 import { ComponentChildren } from "../../deps.ts";
 
-export interface HandlerContext {
-  readonly render: (data: unknown) => Response | Promise<Response>;
+export interface HandlerContext<Data = unknown> {
+  readonly render: (data?: Data) => Response | Promise<Response>;
 }
 
-export interface Handler {
-  (request: Request, context: HandlerContext): Response | Promise<Response>;
-}
-
-export interface RoutePage {
-  (): unknown;
-}
-
-/** Module for route. */
-export interface RouteModule {
-  default: RoutePage;
-  handler: Handler;
-}
-
-interface RenderContext {
-  readonly path: string;
-}
-
-export interface Render {
+export interface Handler<Data = unknown> {
   (
     request: Request,
-    context: RenderContext,
-  ): BodyInit | null | undefined | Promise<BodyInit | null | undefined>;
+    context: HandlerContext<Data>,
+  ): Response | Promise<Response>;
 }
 
 /** Props for HTML root component. */
@@ -37,9 +19,15 @@ export interface HtmlProps {
   readonly HeadChildren: ComponentChildren;
 }
 
-export interface PageProps {
+export interface PageProps<T = unknown> {
   /** The URL of the request that resulted in this page being rendered. */
   readonly url: URL;
+
+  /**
+   * Additional data passed into {@link HandlerContext.render}`.
+   * @default undefined
+   */
+  readonly data: T;
 }
 
 export interface ResolverContext {
