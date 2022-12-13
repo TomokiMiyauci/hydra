@@ -1,7 +1,7 @@
 import {
   common,
-  contentType,
   ensureDir,
+  isFunction,
   join,
   parse,
   resolve,
@@ -9,7 +9,7 @@ import {
   type WalkOptions,
 } from "../../deps.ts";
 import type { Plugin } from "../../types.ts";
-import type { Render } from "./types.ts";
+import type { Resolver } from "./types.ts";
 
 const WalkOptions: WalkOptions = {
   includeFiles: true,
@@ -20,7 +20,7 @@ const DEFAULT_DIR_NAME = "pages";
 const PLUGIN_NAME = "file-system-routing";
 
 export interface Params {
-  readonly resolvers: Resolvers;
+  readonly resolvers: Iterable<Resolver>;
 }
 
 /** Plugin options. */
@@ -31,8 +31,21 @@ export interface Options {
   readonly dirName?: string;
 }
 
-export interface Resolvers {
-  default: Render;
+export function resolveHandler(): Resolver {
+  const name = "handler";
+
+  return {
+    moduleName: name,
+    resolve: (module, request) => {
+      if (!isFunction(module)) return;
+
+      const result = module(request) as unknown;
+
+      if (result instanceof Response) {
+        return result;
+      }
+    },
+  };
 }
 
 /** File system routing. */
@@ -47,6 +60,7 @@ export function useFsr(params: Params, options?: Options): Plugin {
       await ensureDir(dirPath);
 
       const entries = walk(dirPath, WalkOptions);
+      const resolvers = Array.from(params.resolvers);
 
       for await (const { isFile, path } of entries) {
         if (!isFile) return;
@@ -56,13 +70,19 @@ export function useFsr(params: Params, options?: Options): Plugin {
         const pattern = pathToPattern(resolve("/", absPath));
 
         hydra.on(pattern, async (request) => {
-          const body = await params.resolvers.default(request, { path });
+          const module = await import(path);
 
-          return new Response(body, {
-            headers: {
-              "content-type": contentType("html"),
-            },
-          });
+          for (const resolver of resolvers) {
+            if (resolver.moduleName in module) {
+              const exportedModule = module[resolver.moduleName] as unknown;
+
+              const maybeResponse = resolver.resolve(exportedModule, request);
+
+              if (maybeResponse) {
+                return maybeResponse;
+              }
+            }
+          }
         });
       }
     },

@@ -1,5 +1,5 @@
 export { createHandler, type Options, type Params } from "./handler.ts";
-export { useFsr } from "./plugins/fsr/plugin.ts";
+export { resolveHandler, useFsr } from "./plugins/fsr/plugin.ts";
 export type {
   Handler,
   HandlerContext,

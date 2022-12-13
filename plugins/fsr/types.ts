@@ -36,3 +36,12 @@ export interface HtmlProps {
 
   readonly HeadChildren: ComponentChildren;
 }
+
+export interface Resolver {
+  moduleName: string;
+
+  resolve: (
+    module: unknown,
+    request: Request,
+  ) => void | Response | Promise<Response | void>;
+}

@@ -1,41 +1,57 @@
-import { ComponentChildren, h, JSX, render } from "../deps.ts";
+import {
+  ComponentChildren,
+  contentType,
+  h,
+  isFunction,
+  isValidElement,
+  JSX,
+  render,
+} from "../deps.ts";
 import HtmlComponent from "./Html.tsx";
 import { HEAD_CONTEXT } from "./Head.tsx";
-import type { HtmlProps, Render, RouteModule } from "../plugins/fsr/types.ts";
+import type { HtmlProps, Resolver } from "../plugins/fsr/types.ts";
 
 export interface Options {
   readonly Html: (props: HtmlProps) => JSX.Element;
 }
 
-interface PreactRouteModule extends RouteModule {
-  default: () => JSX.Element;
-}
-
 const DOCTYPE = "<!DOCTYPE html>";
 
-export function createRender(options?: Partial<Options>): Render {
+export function resolveComponent(
+  options?: Options,
+): Resolver {
   const { Html = HtmlComponent } = options ?? {};
+  const name = "default";
 
-  return async (_, { path }) => {
-    const module = await import(path) as PreactRouteModule;
+  return {
+    moduleName: name,
+    resolve: (module) => {
+      if (!isFunction(module)) return;
 
-    const vNode = module.default?.();
-    const headComponents: ComponentChildren[] = [];
-    const rendered = h(HEAD_CONTEXT.Provider, {
-      value: headComponents,
-      children: vNode,
-    });
+      const vNode = module() as unknown;
 
-    if (!vNode || !rendered) return;
+      if (isValidElement(vNode)) {
+        const headComponents: ComponentChildren[] = [];
+        const rendered = h(HEAD_CONTEXT.Provider, {
+          value: headComponents,
+          children: vNode,
+        });
 
-    const bodyHtml = render(rendered);
-    const node = Html({
-      HeadChildren: headComponents,
-      bodyHtml,
-    });
-    const html = render(node);
-    const document = DOCTYPE + html;
+        const bodyHtml = render(rendered);
 
-    return document;
+        const node = Html({
+          HeadChildren: headComponents,
+          bodyHtml,
+        });
+        const html = render(node);
+        const document = DOCTYPE + html;
+
+        return new Response(document, {
+          headers: {
+            "content-type": contentType("html"),
+          },
+        });
+      }
+    },
   };
 }
