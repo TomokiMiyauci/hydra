@@ -21,3 +21,14 @@ export {
 } from "https://deno.land/std@0.167.0/media_types/mod.ts";
 export { gte } from "https://deno.land/std@0.167.0/semver/mod.ts";
 export { parse as parseFlag } from "https://deno.land/std@0.167.0/flags/mod.ts";
+export {
+  render,
+} from "https://esm.sh/v99/preact-render-to-string@5.2.6?deps=preact@10.11.3";
+export {
+  type ComponentChildren,
+  createContext,
+  Fragment,
+  h,
+  type JSX,
+} from "https://esm.sh/v99/preact@10.11.3";
+export { useContext } from "https://esm.sh/v99/preact@10.11.3/hooks";

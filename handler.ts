@@ -36,18 +36,18 @@ class HydraImpl implements Hydra {
 
 const NotFoundResponse = new Response(null, { status: Status.NotFound });
 
-export function createHandler(
+export async function createHandler(
   params: Params,
   { fallback = NotFoundResponse }: Options = {},
-): Handler {
+): Promise<Handler> {
   const inputs = Array.from(params.inputs);
   const hydra = new HydraImpl();
   const baseUrl = import.meta.url;
   const rootDir = dirname(fromFileUrl(baseUrl));
 
-  inputs.forEach((input) => {
-    input.setup(hydra, { rootDir });
-  });
+  await Promise.all(inputs.map((input) => {
+    return input.setup(hydra, { rootDir });
+  }));
 
   return async (request) => {
     return await hydra.response(request) ?? fallback;

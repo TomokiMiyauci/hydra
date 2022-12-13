@@ -7,11 +7,9 @@ import {
   resolve,
   walk,
   type WalkOptions,
-} from "../deps.ts";
-import type { Plugin } from "../types.ts";
-import type { VNode } from "preact";
-import { renderToString } from "preact-render-to-string";
-import Html from "./Html.tsx";
+} from "../../deps.ts";
+import type { Plugin } from "../../types.ts";
+import type { Render } from "./types.ts";
 
 const WalkOptions: WalkOptions = {
   includeFiles: true,
@@ -21,42 +19,21 @@ const WalkOptions: WalkOptions = {
 const DEFAULT_DIR_NAME = "pages";
 const PLUGIN_NAME = "file-system-routing";
 
-interface Options {
+export interface Params {
+  readonly resolvers: Resolvers;
+}
+
+/** Plugin options. */
+export interface Options {
+  /**
+   * @default "pages"
+   */
   readonly dirName?: string;
 }
 
-interface Module {
-  readonly default?: () => VNode;
+export interface Resolvers {
+  default: Render;
 }
-
-interface Context {
-  readonly path: string;
-}
-
-interface Params {
-  render: Render;
-}
-
-interface Render {
-  (
-    context: Context,
-  ): BodyInit | null | undefined | Promise<BodyInit | null | undefined>;
-}
-
-export const renderPreact: Render = async ({ path }) => {
-  const module = await import(path) as Module;
-
-  const vNode = module.default?.();
-  if (!vNode) return;
-
-  const bodyHtml = renderToString(vNode);
-  const html = renderToString(Html({ content: bodyHtml }));
-  const document = DOCTYPE + html;
-
-  return document;
-};
-
-const DOCTYPE = "<!DOCTYPE html>";
 
 /** File system routing. */
 export function useFsr(params: Params, options?: Options): Plugin {
@@ -78,8 +55,8 @@ export function useFsr(params: Params, options?: Options): Plugin {
         const absPath = path.substring(duplicated.length);
         const pattern = pathToPattern(resolve("/", absPath));
 
-        hydra.on(pattern, async () => {
-          const body = await params.render({ path });
+        hydra.on(pattern, async (request) => {
+          const body = await params.resolvers.default(request, { path });
 
           return new Response(body, {
             headers: {
