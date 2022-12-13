@@ -4,6 +4,7 @@ export type {
   Handler,
   HandlerContext,
   HtmlProps,
+  PageProps,
   RouteModule,
   RoutePage,
 } from "./plugins/fsr/types.ts";

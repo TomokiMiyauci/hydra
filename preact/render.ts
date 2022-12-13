@@ -2,6 +2,7 @@ import {
   ComponentChildren,
   contentType,
   h,
+  hasOwn,
   isFunction,
   isValidElement,
   JSX,
@@ -9,49 +10,62 @@ import {
 } from "../deps.ts";
 import HtmlComponent from "./Html.tsx";
 import { HEAD_CONTEXT } from "./Head.tsx";
-import type { HtmlProps, Resolver } from "../plugins/fsr/types.ts";
+import type { HtmlProps, PageProps, Resolver } from "../plugins/fsr/types.ts";
 
 export interface Options {
+  /**
+   * @default "default"
+   */
+  readonly exportName: string;
+
   readonly Html: (props: HtmlProps) => JSX.Element;
 }
 
+interface Component {
+  (props: PageProps): unknown;
+}
+
 const DOCTYPE = "<!DOCTYPE html>";
+const DEFAULT_EXPORT_NAME = "default";
 
 export function resolveComponent(
-  options?: Options,
+  options?: Partial<Options>,
 ): Resolver {
-  const { Html = HtmlComponent } = options ?? {};
-  const name = "default";
+  const { Html = HtmlComponent, exportName = DEFAULT_EXPORT_NAME } = options ??
+    {};
 
-  return {
-    moduleName: name,
-    resolve: (module) => {
-      if (!isFunction(module)) return;
+  return ((module, ctx) => {
+    if (!hasOwn(exportName, module)) return;
 
-      const vNode = module() as unknown;
+    const exported = module[exportName];
 
-      if (isValidElement(vNode)) {
-        const headComponents: ComponentChildren[] = [];
-        const rendered = h(HEAD_CONTEXT.Provider, {
-          value: headComponents,
-          children: vNode,
-        });
+    if (!isFunction(exported)) return;
 
-        const bodyHtml = render(rendered);
+    const url = new URL(ctx.request.url);
+    const props: PageProps = { url };
+    const vNode = (exported as Component)(props);
 
-        const node = Html({
-          HeadChildren: headComponents,
-          bodyHtml,
-        });
-        const html = render(node);
-        const document = DOCTYPE + html;
+    if (isValidElement(vNode)) {
+      const headComponents: ComponentChildren[] = [];
+      const rendered = h(HEAD_CONTEXT.Provider, {
+        value: headComponents,
+        children: vNode,
+      });
 
-        return new Response(document, {
-          headers: {
-            "content-type": contentType("html"),
-          },
-        });
-      }
-    },
-  };
+      const bodyHtml = render(rendered);
+
+      const node = Html({
+        HeadChildren: headComponents,
+        bodyHtml,
+      });
+      const html = render(node);
+      const document = DOCTYPE + html;
+
+      return new Response(document, {
+        headers: {
+          "content-type": contentType("html"),
+        },
+      });
+    }
+  });
 }

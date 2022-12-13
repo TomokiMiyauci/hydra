@@ -1,6 +1,7 @@
 import {
   common,
   ensureDir,
+  hasOwn,
   isFunction,
   join,
   parse,
@@ -9,7 +10,7 @@ import {
   type WalkOptions,
 } from "../../deps.ts";
 import type { Plugin } from "../../types.ts";
-import type { Resolver } from "./types.ts";
+import type { Handler, Resolver } from "./types.ts";
 
 const WalkOptions: WalkOptions = {
   includeFiles: true,
@@ -31,20 +32,31 @@ export interface Options {
   readonly dirName?: string;
 }
 
-export function resolveHandler(): Resolver {
-  const name = "handler";
+export function resolveHandler(params: {
+  render: Resolver;
+}): Resolver {
+  return (module, ctx) => {
+    if (!hasOwn("handler", module)) return;
 
-  return {
-    moduleName: name,
-    resolve: (module, request) => {
-      if (!isFunction(module)) return;
+    const handler = module.handler;
 
-      const result = module(request) as unknown;
+    if (!isFunction(handler)) return;
 
-      if (result instanceof Response) {
-        return result;
-      }
-    },
+    async function render(): Promise<Response> {
+      const res = await params.render(module, ctx);
+
+      if (res) return res;
+
+      throw Error("response should be Response or Promise response");
+    }
+
+    const result = (handler as Handler)(ctx.request, {
+      render,
+    });
+
+    if (result instanceof Response) {
+      return result;
+    }
   };
 }
 
@@ -60,7 +72,6 @@ export function useFsr(params: Params, options?: Options): Plugin {
       await ensureDir(dirPath);
 
       const entries = walk(dirPath, WalkOptions);
-      const resolvers = Array.from(params.resolvers);
 
       for await (const { isFile, path } of entries) {
         if (!isFile) return;
@@ -70,17 +81,16 @@ export function useFsr(params: Params, options?: Options): Plugin {
         const pattern = pathToPattern(resolve("/", absPath));
 
         hydra.on(pattern, async (request) => {
-          const module = await import(path);
+          const module = await import(path) as {};
 
-          for (const resolver of resolvers) {
-            if (resolver.moduleName in module) {
-              const exportedModule = module[resolver.moduleName] as unknown;
+          for (const resolver of params.resolvers) {
+            const maybeResponse = resolver(
+              module,
+              { request, path },
+            );
 
-              const maybeResponse = resolver.resolve(exportedModule, request);
-
-              if (maybeResponse) {
-                return maybeResponse;
-              }
+            if (maybeResponse) {
+              return maybeResponse;
             }
           }
         });

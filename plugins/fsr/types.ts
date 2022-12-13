@@ -37,11 +37,20 @@ export interface HtmlProps {
   readonly HeadChildren: ComponentChildren;
 }
 
-export interface Resolver {
-  moduleName: string;
+export interface PageProps {
+  /** The URL of the request that resulted in this page being rendered. */
+  readonly url: URL;
+}
 
-  resolve: (
-    module: unknown,
-    request: Request,
-  ) => void | Response | Promise<Response | void>;
+export interface ResolverContext {
+  readonly path: string;
+  readonly request: Request;
+}
+
+export interface Resolver {
+  (
+    // deno-lint-ignore ban-types
+    module: {},
+    context: ResolverContext,
+  ): void | Response | Promise<Response | void>;
 }
