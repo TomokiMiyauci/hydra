@@ -54,7 +54,7 @@ export async function createRoutes(params: Params): Promise<RouteEntry[]> {
   const collector = new Collector();
 
   await Promise.all(inputs.map((input) => {
-    return input.setup(collector, { rootDir });
+    return input.setup(collector, { rootDir, isProduction: true });
   }));
 
   return collector.entries;

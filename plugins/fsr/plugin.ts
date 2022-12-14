@@ -1,25 +1,16 @@
-import {
-  common,
-  ensureDir,
-  join,
-  parse,
-  resolve,
-  walk,
-  type WalkOptions,
-} from "../../deps.ts";
+import { ensureDir, join, parse, resolve } from "../../deps.ts";
+import { collect, generate } from "./manifest.ts";
 import type { Plugin } from "../../types.ts";
-import type { Resolver } from "./types.ts";
+import type { Manifest, Resolver } from "./types.ts";
 
-const WalkOptions: WalkOptions = {
-  includeFiles: true,
-  includeDirs: false,
-  followSymlinks: false,
-};
 const DEFAULT_DIR_NAME = "pages";
+const DEFAULT_MANIFEST_NAME = "hydra.gen.ts";
 const PLUGIN_NAME = "file-system-routing";
 
 export interface Params {
   readonly resolvers: Iterable<Resolver>;
+
+  readonly manifest: Manifest;
 }
 
 /** Plugin options. */
@@ -36,35 +27,29 @@ export function useFsr(params: Params, options?: Options): Plugin {
 
   return {
     name: PLUGIN_NAME,
-    setup: async (hydra, { rootDir }) => {
+    setup: async (hydra, { rootDir, isProduction }) => {
       const dirPath = resolve(rootDir, dirName);
 
       await ensureDir(dirPath);
 
-      const entries = walk(dirPath, WalkOptions);
-
-      for await (const { isFile, path } of entries) {
-        if (!isFile) return;
-
-        const duplicated = common([path, dirPath]);
-        const absPath = path.substring(duplicated.length);
-        const pattern = pathToPattern(resolve("/", absPath));
+      for (const [absPath, module] of Object.entries(params.manifest.pages)) {
+        const pattern = pathToPattern(absPath);
 
         hydra.on(pattern, async (request) => {
-          // deno-lint-ignore ban-types
-          const module = await import(path) as {};
-
           for (const resolver of params.resolvers) {
-            const maybeResponse = await resolver(
-              module,
-              { request, path },
-            );
+            const maybeResponse = await resolver(module, { request });
 
             if (maybeResponse) {
               return maybeResponse;
             }
           }
         });
+      }
+
+      if (!isProduction) {
+        const manifest = await collect(dirPath);
+        const manifestPath = join(rootDir, DEFAULT_MANIFEST_NAME);
+        await generate(manifestPath, manifest);
       }
     },
   };

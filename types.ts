@@ -18,5 +18,8 @@ export interface Handler {
 }
 
 export interface Context {
+  /** Whether the environment is production or not. */
+  readonly isProduction: boolean;
+
   readonly rootDir: string;
 }

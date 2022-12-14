@@ -31,7 +31,6 @@ export interface PageProps<T = unknown> {
 }
 
 export interface ResolverContext {
-  readonly path: string;
   readonly request: Request;
 }
 
@@ -41,4 +40,15 @@ export interface Resolver {
     module: {},
     context: ResolverContext,
   ): void | Response | Promise<Response | void>;
+}
+
+export interface Resource {
+  readonly pages: readonly string[];
+}
+
+// deno-lint-ignore ban-types
+type Module = {};
+
+export interface Manifest {
+  readonly pages: Record<string, Module>;
 }
