@@ -71,11 +71,27 @@ export function useFsr(params: Params, options?: Options): Plugin {
 }
 
 /** Transform a filesystem URL path to a `path-to-regex` style matcher. */
-function pathToPattern(path: string): URLPatternInput {
+export function pathToPattern(path: string): URLPatternInput {
   const parsed = parse(path);
 
-  const name = parsed.name === "index" ? "" : parsed.name;
-  const pathname = join("/", parsed.dir, "/", name);
+  const name = parsed.name === "index" ? "" : dynamicName(parsed.name);
+  const dir = parsed.dir.replaceAll(ReBracket, replacer);
+  const subpath = name ? join("/", name) : "";
+  const pathname = join(dir, subpath);
 
   return { pathname };
+}
+
+function replacer(...rest: readonly unknown[]): string {
+  return ":" + rest[1];
+}
+
+const ReBracket = /\[(.+)\]/g;
+
+function dynamicName(input: string): string {
+  const result = ReBracket.exec(input);
+
+  if (!result) return input;
+
+  return replacer(...result);
 }

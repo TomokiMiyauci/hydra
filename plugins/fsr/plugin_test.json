@@ -1,0 +1,16 @@
+{
+  "pathToPattern": [
+    { "actual": "/index.tsx", "expected": { "pathname": "/" } },
+    { "actual": "/about.tsx", "expected": { "pathname": "/about" } },
+    { "actual": "/about/index.tsx", "expected": { "pathname": "/about" } },
+    { "actual": "/about/1.tsx", "expected": { "pathname": "/about/1" } },
+    { "actual": "/about/1/index.ts", "expected": { "pathname": "/about/1" } },
+    { "actual": "/[name].ts", "expected": { "pathname": "/:name" } },
+    { "actual": "/user/[name].ts", "expected": { "pathname": "/user/:name" } },
+    {
+      "actual": "/user/[name]/[id].ts",
+      "expected": { "pathname": "/user/:name/:id" }
+    },
+    { "actual": "/[].ts", "expected": { "pathname": "/[]" } }
+  ]
+}
