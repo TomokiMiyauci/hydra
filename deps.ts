@@ -37,3 +37,11 @@ export {
   hasOwn,
   isFunction,
 } from "https://deno.land/x/isx@1.0.0-beta.24/mod.ts";
+
+export function endWith(
+  input: string,
+  searchString: string,
+  endPosition?: number,
+): boolean {
+  return input.endsWith(searchString, endPosition);
+}

@@ -1,4 +1,9 @@
-export { createHandler, type Options, type Params } from "./handler.ts";
+export {
+  createHandler,
+  createRoutes,
+  type Options,
+  type Params,
+} from "./handler.ts";
 export { useFsr } from "./plugins/fsr/plugin.ts";
 export { resolveHandler } from "./plugins/fsr/resolvers.ts";
 export type {
