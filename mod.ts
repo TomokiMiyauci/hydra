@@ -1,9 +1,4 @@
-export {
-  createHandler,
-  createRoutes,
-  type Options,
-  type Params,
-} from "./handler.ts";
+export { createHandler, type Options, type Params } from "./handler.ts";
 export { useFsr } from "./plugins/fsr/plugin.ts";
 export { resolveHandler } from "./plugins/fsr/resolvers.ts";
 export type {
@@ -13,4 +8,5 @@ export type {
   PageProps,
 } from "./plugins/fsr/types.ts";
 export { useStatic, type UseStaticOptions } from "./plugins/static.ts";
+export { default as useTwind } from "./plugins/twind.ts";
 export * from "./preact/mod.ts";

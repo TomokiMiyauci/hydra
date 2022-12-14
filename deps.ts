@@ -42,7 +42,6 @@ export {
 export {
   DOMParser,
   Element,
-  HTMLDocument,
 } from "https://deno.land/x/deno_dom@v0.1.26-alpha/deno-dom-wasm.ts";
 import type {
   HTMLDocument,
