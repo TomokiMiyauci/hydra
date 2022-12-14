@@ -1,4 +1,4 @@
-import { dirname, endWith, fromFileUrl, Status } from "./deps.ts";
+import { dirname, endWith, extname, fromFileUrl, Status } from "./deps.ts";
 import type { Handler, Hydra, Plugin } from "./types.ts";
 
 export interface Params {
@@ -64,7 +64,9 @@ function removeTrailingSlash(input: string): string {
   return input.replaceAll(/\/+$/g, "");
 }
 
-function trailingSlashEntries(entries: Iterable<RouteEntry>): RouteEntry[] {
+export function trailingSlashEntries(
+  entries: Iterable<RouteEntry>,
+): RouteEntry[] {
   const result = Array.from(entries).reduce((acc, [pattern, handler]) => {
     const entry: RouteEntry = [pattern, handler];
     if (endWith(pattern.pathname, "/")) {
@@ -72,7 +74,7 @@ function trailingSlashEntries(entries: Iterable<RouteEntry>): RouteEntry[] {
     }
 
     const redirectEntry: RouteEntry = [
-      tailingSlashableURLPattern(pattern),
+      new URLPattern(tailingSlashableURLPattern(pattern)),
       redirectTrailingSlashEndpoint,
     ];
     const entries: RouteEntry[] = [entry, redirectEntry];
@@ -91,11 +93,13 @@ function redirectTrailingSlashEndpoint(request: Request): Response {
   return Response.redirect(url, Status.TemporaryRedirect);
 }
 
-function tailingSlashableURLPattern(
+export function tailingSlashableURLPattern(
   input: { readonly pathname: string },
-): URLPattern {
+): URLPatternInit {
+  if (extname(input.pathname)) return input;
+
   const pathname = endWith(input.pathname, "/")
     ? input.pathname
     : input.pathname + "/";
-  return new URLPattern({ ...input, pathname });
+  return { ...input, pathname };
 }

@@ -1,0 +1,36 @@
+{
+  "tailingSlashableURLPattern": [
+    {
+      "actual": { "pathname": "/" },
+      "expected": { "pathname": "/" }
+    },
+    {
+      "actual": { "pathname": "//" },
+      "expected": { "pathname": "//" }
+    },
+    {
+      "actual": { "pathname": "/a.txt" },
+      "expected": { "pathname": "/a.txt" }
+    },
+    {
+      "actual": { "pathname": "/about" },
+      "expected": { "pathname": "/about/" }
+    },
+    {
+      "actual": { "pathname": "/about/" },
+      "expected": { "pathname": "/about/" }
+    },
+    {
+      "actual": { "pathname": "/:name" },
+      "expected": { "pathname": "/:name/" }
+    },
+    {
+      "actual": { "pathname": "/:name/:id" },
+      "expected": { "pathname": "/:name/:id/" }
+    },
+    {
+      "actual": { "pathname": "/:name/:id", "username": "admin" },
+      "expected": { "pathname": "/:name/:id/", "username": "admin" }
+    }
+  ]
+}
