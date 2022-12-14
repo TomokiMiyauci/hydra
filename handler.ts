@@ -1,5 +1,14 @@
-import { dirname, endWith, extname, fromFileUrl, Status } from "./deps.ts";
-import type { Handler, Hydra, Plugin } from "./types.ts";
+import {
+  dirname,
+  DOMParser,
+  endWith,
+  extname,
+  fromFileUrl,
+  parseMediaType,
+  serializeHtml,
+  Status,
+} from "./deps.ts";
+import type { Handler, Hydra, Plugin, RenderResult } from "./types.ts";
 
 export interface Params {
   readonly inputs: Iterable<Plugin>;
@@ -27,10 +36,15 @@ type RouteEntry = [URLPattern, VoidableHandler];
 
 class Collector implements Hydra {
   entries: RouteEntry[] = [];
+  renderers: ((params: RenderResult) => Partial<RenderResult> | void)[] = [];
 
   on = (input: URLPatternInput, fn: VoidableHandler) => {
     const pattern = new URLPattern(input);
     this.entries.push([pattern, fn]);
+  };
+
+  render = (fn: (params: RenderResult) => Partial<RenderResult> | void) => {
+    this.renderers.push(fn);
   };
 }
 
@@ -42,15 +56,40 @@ export async function createHandler(
 ): Promise<Handler> {
   const { fallback = NotFoundResponse, ...rest } = options ?? {};
 
-  const routes = await createRoutes(params, rest);
-  const entries = trailingSlashEntries(routes);
+  const collector = await createCollector(params, rest);
+  const routes = trailingSlashEntries(collector.entries);
 
   return async (request) => {
-    for (const [pattern, handler] of entries) {
+    for (const [pattern, handler] of routes) {
       if (pattern.test(request.url)) {
         const maybeResponse = await handler(request);
 
         if (maybeResponse) {
+          const type = maybeResponse.headers.get("content-type");
+          if (!type) return maybeResponse;
+
+          const mediaType = parseMediaType(type)[0];
+
+          if (mediaType === "text/html") {
+            const domParser = new DOMParser();
+            const text = await maybeResponse.text();
+            const htmlDocument = domParser.parseFromString(text, mediaType);
+
+            if (!htmlDocument) {
+              throw Error("invalid HTML");
+            }
+
+            const result = collector.renderers.reduce((acc, cur) => {
+              const result = cur(acc);
+
+              return { ...acc, ...result };
+            }, { document: htmlDocument } as RenderResult);
+
+            const html = serializeHtml(result.document);
+
+            return new Response(html, maybeResponse);
+          }
+
           return maybeResponse;
         }
       }
@@ -59,10 +98,10 @@ export async function createHandler(
   };
 }
 
-export async function createRoutes(
+export async function createCollector(
   params: Params,
   options?: Partial<Options>,
-): Promise<RouteEntry[]> {
+): Promise<Collector> {
   const { isProduction = false } = options ?? {};
   const inputs = Array.from(params.inputs);
   const baseUrl = import.meta.url;
@@ -73,7 +112,7 @@ export async function createRoutes(
     return input.setup(collector, { rootDir, isProduction });
   }));
 
-  return collector.entries;
+  return collector;
 }
 
 function removeTrailingSlash(input: string): string {
