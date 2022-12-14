@@ -6,7 +6,17 @@ export interface Params {
 }
 
 export interface Options {
-  readonly fallback?: Response;
+  readonly fallback: Response;
+
+  /** Whether the environment is production or not.
+   * @default false
+   */
+  readonly isProduction: boolean;
+
+  /**
+   * @default import.meta.url
+   */
+  readonly baseUrl: string;
 }
 
 interface VoidableHandler {
@@ -28,9 +38,11 @@ const NotFoundResponse = new Response(null, { status: Status.NotFound });
 
 export async function createHandler(
   params: Params,
-  { fallback = NotFoundResponse }: Options = {},
+  options?: Partial<Options>,
 ): Promise<Handler> {
-  const routes = await createRoutes(params);
+  const { fallback = NotFoundResponse, ...rest } = options ?? {};
+
+  const routes = await createRoutes(params, rest);
   const entries = trailingSlashEntries(routes);
 
   return async (request) => {
@@ -47,14 +59,18 @@ export async function createHandler(
   };
 }
 
-export async function createRoutes(params: Params): Promise<RouteEntry[]> {
+export async function createRoutes(
+  params: Params,
+  options?: Partial<Options>,
+): Promise<RouteEntry[]> {
+  const { isProduction = false } = options ?? {};
   const inputs = Array.from(params.inputs);
   const baseUrl = import.meta.url;
   const rootDir = dirname(fromFileUrl(baseUrl));
   const collector = new Collector();
 
   await Promise.all(inputs.map((input) => {
-    return input.setup(collector, { rootDir, isProduction: true });
+    return input.setup(collector, { rootDir, isProduction });
   }));
 
   return collector.entries;

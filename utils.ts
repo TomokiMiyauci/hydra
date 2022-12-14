@@ -16,3 +16,17 @@ export const WalkOptions: deps.WalkOptions = {
   includeFiles: true,
   followSymlinks: false,
 };
+
+export class Store {
+  #key: string;
+  constructor(key: string) {
+    this.#key = key;
+  }
+  get(): string | undefined {
+    return Deno.env.get(this.#key);
+  }
+
+  set(input: string): void {
+    Deno.env.set(this.#key, input);
+  }
+}

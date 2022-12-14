@@ -79,3 +79,15 @@ export async function collect(dir: string): Promise<Resource> {
 
   return { pages };
 }
+
+export function equal(left: Resource, right: Resource): boolean {
+  return equalArray(left.pages, right.pages);
+}
+
+function equalArray<T>(a: readonly T[], b: readonly T[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}

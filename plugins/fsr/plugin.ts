@@ -1,10 +1,12 @@
 import { ensureDir, join, parse, resolve } from "../../deps.ts";
-import { collect, generate } from "./manifest.ts";
+import { collect, equal, generate } from "./manifest.ts";
 import type { Plugin } from "../../types.ts";
-import type { Manifest, Resolver } from "./types.ts";
+import type { Manifest, Resolver, Resource } from "./types.ts";
+import { Store } from "../../utils.ts";
 
 const DEFAULT_DIR_NAME = "pages";
 const DEFAULT_MANIFEST_NAME = "hydra.gen.ts";
+const STORE_KEY = "HYDRA_PREV_MANIFEST";
 const PLUGIN_NAME = "file-system-routing";
 
 export interface Params {
@@ -47,9 +49,20 @@ export function useFsr(params: Params, options?: Options): Plugin {
       }
 
       if (!isProduction) {
-        const manifest = await collect(dirPath);
-        const manifestPath = join(rootDir, DEFAULT_MANIFEST_NAME);
-        await generate(manifestPath, manifest);
+        const store = new Store(STORE_KEY);
+        const value = store.get();
+
+        const prevResource: Resource = value
+          ? JSON.parse(value)
+          : { pages: [] };
+        const resource = await collect(dirPath);
+
+        if (!equal(prevResource, resource)) {
+          const manifestPath = join(rootDir, DEFAULT_MANIFEST_NAME);
+          await generate(manifestPath, resource);
+        }
+        const resourceStr = JSON.stringify(resource);
+        store.set(resourceStr);
       }
     },
   };
