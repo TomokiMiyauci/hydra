@@ -12,13 +12,13 @@ export {
 } from "https://deno.land/std@0.167.0/path/mod.ts";
 export {
   walk,
+  type WalkEntry,
   type WalkOptions,
 } from "https://deno.land/std@0.167.0/fs/walk.ts";
 export { ensureDir } from "https://deno.land/std@0.167.0/fs/ensure_dir.ts";
 export { Status } from "https://deno.land/std@0.167.0/http/http_status.ts";
 export {
   contentType,
-  parseMediaType,
   typeByExtension,
 } from "https://deno.land/std@0.167.0/media_types/mod.ts";
 export { gte } from "https://deno.land/std@0.167.0/semver/mod.ts";
@@ -39,14 +39,6 @@ export {
   hasOwn,
   isFunction,
 } from "https://deno.land/x/isx@1.0.0-beta.24/mod.ts";
-export {
-  DOMParser,
-  Element,
-} from "https://deno.land/x/deno_dom@v0.1.26-alpha/deno-dom-wasm.ts";
-import type {
-  HTMLDocument,
-} from "https://deno.land/x/deno_dom@v0.1.26-alpha/deno-dom-wasm.ts";
-export { distinct } from "https://deno.land/std@0.167.0/collections/distinct.ts";
 
 export function endWith(
   input: string,
@@ -54,10 +46,4 @@ export function endWith(
   endPosition?: number,
 ): boolean {
   return input.endsWith(searchString, endPosition);
-}
-
-export function serializeHtml(document: HTMLDocument): string {
-  if (!document.documentElement) return "";
-
-  return "<!DOCTYPE html>" + document.documentElement.outerHTML;
 }

@@ -1,14 +1,5 @@
-import {
-  dirname,
-  DOMParser,
-  endWith,
-  extname,
-  fromFileUrl,
-  parseMediaType,
-  serializeHtml,
-  Status,
-} from "./deps.ts";
-import type { Handler, Hydra, Plugin, RenderResult } from "./types.ts";
+import { dirname, endWith, extname, fromFileUrl, Status } from "./deps.ts";
+import type { Handler, Hydra, Plugin, Transform } from "./types.ts";
 
 export interface Params {
   readonly inputs: Iterable<Plugin>;
@@ -36,15 +27,15 @@ type RouteEntry = [URLPattern, VoidableHandler];
 
 class Collector implements Hydra {
   entries: RouteEntry[] = [];
-  renderers: ((params: RenderResult) => Partial<RenderResult> | void)[] = [];
+  transformers: [RegExp, Transform][] = [];
 
   on = (input: URLPatternInput, fn: VoidableHandler) => {
     const pattern = new URLPattern(input);
     this.entries.push([pattern, fn]);
   };
 
-  render = (fn: (params: RenderResult) => Partial<RenderResult> | void) => {
-    this.renderers.push(fn);
+  onTransform = (contentType: RegExp | string, transform: Transform) => {
+    this.transformers.push([new RegExp(contentType), transform]);
   };
 }
 
@@ -68,29 +59,16 @@ export async function createHandler(
           const type = maybeResponse.headers.get("content-type");
           if (!type) return maybeResponse;
 
-          const mediaType = parseMediaType(type)[0];
+          const transforms = collector.transformers.filter(([pattern]) => {
+            return pattern.test(type);
+          }).map(([_, transform]) => transform);
 
-          if (mediaType === "text/html") {
-            const domParser = new DOMParser();
-            const text = await maybeResponse.text();
-            const htmlDocument = domParser.parseFromString(text, mediaType);
+          if (!transforms.length) return maybeResponse;
 
-            if (!htmlDocument) {
-              throw Error("invalid HTML");
-            }
+          const text = await maybeResponse.text();
+          const transformed = transforms.reduce((acc, cur) => cur(acc), text);
 
-            const result = collector.renderers.reduce((acc, cur) => {
-              const result = cur(acc);
-
-              return { ...acc, ...result };
-            }, { document: htmlDocument } as RenderResult);
-
-            const html = serializeHtml(result.document);
-
-            return new Response(html, maybeResponse);
-          }
-
-          return maybeResponse;
+          return new Response(transformed, maybeResponse);
         }
       }
     }

@@ -15,7 +15,7 @@ export default function useTwind(
     name: "twind",
 
     setup: (hydra) => {
-      hydra.transform("text/html", inline);
+      hydra.onTransform("text/html", inline);
     },
   };
 }

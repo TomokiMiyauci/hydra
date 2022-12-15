@@ -1,24 +1,27 @@
-import type { HTMLDocument } from "./deps.ts";
-
 export interface Hydra {
   on: (
     pattern: URLPatternInput,
     fn: (request: Request) => Response | void | Promise<Response | void>,
   ) => void;
 
-  render: (fn: (params: RenderResult) => Partial<RenderResult> | void) => void;
+  onTransform: Transformer;
 }
 
-export interface RenderResult {
-  document: HTMLDocument;
+export interface Transform {
+  (input: string): string;
+}
+
+export interface Transformer {
+  (contentType: RegExp | string, transform: Transform): void;
+}
+
+export interface Setup {
+  (instance: Hydra, context: Context): void | Promise<void>;
 }
 
 export interface Plugin {
   readonly name: string;
-  readonly setup: (
-    instance: Hydra,
-    context: Context,
-  ) => void | Promise<void>;
+  readonly setup: Setup;
 }
 
 export interface Handler {
