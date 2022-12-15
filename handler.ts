@@ -1,4 +1,12 @@
-import { dirname, endWith, extname, fromFileUrl, Status } from "./deps.ts";
+import {
+  dirname,
+  endWith,
+  extname,
+  fromFileUrl,
+  isString,
+  LRUMap,
+  Status,
+} from "./deps.ts";
 import type { Handler, Hydra, Plugin, Transform } from "./types.ts";
 
 export interface Params {
@@ -49,29 +57,46 @@ export async function createHandler(
 
   const collector = await createCollector(params, rest);
   const routes = trailingSlashEntries(collector.entries);
+  const cache = new LRUMap<string, string>(100);
+
+  function resolve(key: string, fn: (input: string) => string): string {
+    const cached = cache.get(key);
+
+    if (isString(cached)) return cached;
+
+    const value = fn(key);
+
+    cache.set(key, value);
+
+    return value;
+  }
 
   return async (request) => {
     for (const [pattern, handler] of routes) {
-      if (pattern.test(request.url)) {
-        const maybeResponse = await handler(request);
+      if (!pattern.test(request.url)) continue;
 
-        if (maybeResponse) {
-          const type = maybeResponse.headers.get("content-type");
-          if (!type) return maybeResponse;
+      const maybeResponse = await handler(request);
 
-          const transforms = collector.transformers.filter(([pattern]) => {
-            return pattern.test(type);
-          }).map(([_, transform]) => transform);
+      if (!maybeResponse) continue;
 
-          if (!transforms.length) return maybeResponse;
+      const type = maybeResponse.headers.get("content-type");
 
-          const text = await maybeResponse.text();
-          const transformed = transforms.reduce((acc, cur) => cur(acc), text);
+      if (!type) return maybeResponse;
 
-          return new Response(transformed, maybeResponse);
-        }
-      }
+      const transforms = collector.transformers.filter(([pattern]) => {
+        return pattern.test(type);
+      }).map(([_, transform]) => transform);
+
+      if (!transforms.length) return maybeResponse;
+
+      const text = await maybeResponse.text();
+      const transformed = transforms.reduce((acc, cur) => {
+        return resolve(acc, cur);
+      }, text);
+
+      return new Response(transformed, maybeResponse);
     }
+
     return fallback;
   };
 }

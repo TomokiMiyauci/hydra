@@ -38,7 +38,9 @@ export { useContext } from "https://esm.sh/v99/preact@10.11.3/hooks";
 export {
   hasOwn,
   isFunction,
+  isString,
 } from "https://deno.land/x/isx@1.0.0-beta.24/mod.ts";
+export { LRUMap } from "https://deno.land/x/lru_map@1.0.0-beta.1/mod.ts";
 
 export function endWith(
   input: string,
