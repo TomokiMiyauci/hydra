@@ -7,7 +7,7 @@ import {
   LRUMap,
   Status,
 } from "./deps.ts";
-import type { Handler, Hydra, Plugin, Transform } from "./types.ts";
+import type { Config, Handler, Hooks, Plugin, Transform } from "./types.ts";
 
 export interface Params {
   readonly inputs: Iterable<Plugin>;
@@ -33,7 +33,7 @@ interface VoidableHandler {
 
 type RouteEntry = [URLPattern, VoidableHandler];
 
-class Collector implements Hydra {
+class Queue implements Hooks {
   entries: RouteEntry[] = [];
   transformers: [RegExp, Transform][] = [];
 
@@ -59,12 +59,15 @@ export async function createHandler(
   const routes = trailingSlashEntries(collector.entries);
   const cache = new LRUMap<string, string>(100);
 
-  function resolve(key: string, fn: (input: string) => string): string {
+  async function resolve(
+    key: string,
+    fn: (input: string) => string | Promise<string>,
+  ): Promise<string> {
     const cached = cache.get(key);
 
     if (isString(cached)) return cached;
 
-    const value = fn(key);
+    const value = await fn(key);
 
     cache.set(key, value);
 
@@ -89,10 +92,9 @@ export async function createHandler(
 
       if (!transforms.length) return maybeResponse;
 
-      const text = await maybeResponse.text();
-      const transformed = transforms.reduce((acc, cur) => {
-        return resolve(acc, cur);
-      }, text);
+      const transformed = await transforms.reduce(async (acc, cur) => {
+        return resolve(await acc, cur);
+      }, maybeResponse.text());
 
       return new Response(transformed, maybeResponse);
     }
@@ -104,18 +106,18 @@ export async function createHandler(
 export async function createCollector(
   params: Params,
   options?: Partial<Options>,
-): Promise<Collector> {
+): Promise<Queue> {
   const { isProduction = false } = options ?? {};
   const inputs = Array.from(params.inputs);
   const baseUrl = import.meta.url;
   const rootDir = dirname(fromFileUrl(baseUrl));
-  const collector = new Collector();
+  const queue = new Queue();
 
   await Promise.all(inputs.map((input) => {
-    return input.setup(collector, { rootDir, isProduction });
+    return input.setup(queue, { rootDir, isProduction });
   }));
 
-  return collector;
+  return queue;
 }
 
 function removeTrailingSlash(input: string): string {
@@ -160,4 +162,22 @@ export function tailingSlashableURLPattern(
     ? input.pathname
     : input.pathname + "/";
   return { ...input, pathname };
+}
+
+export class Hydra {
+  isProd: boolean;
+  baseUrl: string;
+  plugins: Plugin[];
+
+  constructor(config: Config) {
+    this.isProd = config.isProd ?? true;
+    this.baseUrl = config.baseUrl ?? import.meta.url;
+    this.plugins = Array.from(config.plugins);
+  }
+
+  createHandler = async (): Promise<Handler> => {
+    const handler = await createHandler({ inputs: this.plugins });
+
+    return handler;
+  };
 }

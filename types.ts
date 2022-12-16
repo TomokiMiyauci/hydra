@@ -1,22 +1,22 @@
-export interface Hydra {
+export interface Hooks {
   on: (
     pattern: URLPatternInput,
     fn: (request: Request) => Response | void | Promise<Response | void>,
   ) => void;
 
-  onTransform: Transformer;
+  onTransform: TransformHook;
 }
 
 export interface Transform {
-  (input: string): string;
+  (input: string): string | Promise<string>;
 }
 
-export interface Transformer {
+export interface TransformHook {
   (contentType: RegExp | string, transform: Transform): void;
 }
 
 export interface Setup {
-  (instance: Hydra, context: Context): void | Promise<void>;
+  (hooks: Hooks, context: Context): void | Promise<void>;
 }
 
 export interface Plugin {
@@ -33,4 +33,18 @@ export interface Context {
   readonly isProduction: boolean;
 
   readonly rootDir: string;
+}
+
+export interface Config {
+  plugins: Iterable<Plugin>;
+
+  /**
+   * @default import.meta.url
+   */
+  baseUrl?: string;
+
+  /**
+   * @default true
+   */
+  isProd?: boolean;
 }
